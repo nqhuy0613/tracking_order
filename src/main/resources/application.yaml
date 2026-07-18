@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: tracking_order
+  datasource:
+    url: jdbc:mysql://localhost:3306/tracking_order_db
+    username: root
+    password: qhuy061305
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
