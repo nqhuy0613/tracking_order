@@ -25,7 +25,6 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
             AccessDeniedException exception
     ) throws IOException {
         ApiResponse<Void> body = ApiResponse.error(
-                HttpStatus.FORBIDDEN,
                 "ACCESS_DENIED",
                 "You do not have permission"
         );

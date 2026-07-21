@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 
@@ -14,8 +13,8 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
+    // code là unique message có thể trùng
     private boolean success;
-    private int status;
     private String code;
     private String message;
     private T data;
@@ -23,13 +22,11 @@ public class ApiResponse<T> {
     private LocalDateTime timestamp;
 
     public static <T> ApiResponse<T> success(
-            HttpStatus status,
             String message,
             T data
     ) {
         return ApiResponse.<T>builder()
                 .success(true)
-                .status(status.value())
                 .code("SUCCESS")
                 .message(message)
                 .data(data)
@@ -38,14 +35,12 @@ public class ApiResponse<T> {
     }
 
     public static ApiResponse<Void> error(
-            HttpStatus status,
             String code,
             String message
 
     ) {
         return ApiResponse.<Void>builder()
                 .success(false)
-                .status(status.value())
                 .code(code)
                 .message(message)
                 .timestamp(LocalDateTime.now())
@@ -58,7 +53,6 @@ public class ApiResponse<T> {
     ) {
         return ApiResponse.<Void>builder()
                 .success(false)
-                .status(HttpStatus.BAD_REQUEST.value())
                 .code("VALIDATION_ERROR")
                 .message(message)
                 .errors(errors)

@@ -23,7 +23,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(errorCode.getStatus())
                 .body(ApiResponse.error(
-                        errorCode.getStatus(),
                         errorCode.getCode(),
                         errorCode.getMessage()
                 ));
@@ -56,7 +55,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
                         "500",
                         "Unexpected internal server error"
                 ));

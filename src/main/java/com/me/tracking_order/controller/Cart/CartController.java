@@ -31,7 +31,6 @@ public class CartController {
         );
 
         ApiResponse<CartItemResponse> response = ApiResponse.success(
-                HttpStatus.OK,
                 "Cart item quantity updated successfully",
                 result
         );

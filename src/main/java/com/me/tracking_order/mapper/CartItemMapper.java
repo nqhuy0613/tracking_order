@@ -2,35 +2,38 @@ package com.me.tracking_order.mapper;
 
 import com.me.tracking_order.dto.response.CartItemResponse;
 import com.me.tracking_order.entity.CartItem;
-import com.me.tracking_order.entity.Inventory;
-import com.me.tracking_order.entity.ProductVariant;
-import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Component;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingConstants;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.ReportingPolicy;
 
 import java.math.BigDecimal;
 
-@Component
-@RequiredArgsConstructor
-public class CartItemMapper {
+@Mapper(
+        componentModel = MappingConstants.ComponentModel.SPRING,
+        unmappedTargetPolicy = ReportingPolicy.ERROR
+)
+public interface CartItemMapper {
 
-    private final ModelMapper modelMapper;
+    @Mapping(target = "productVariantId", source = "productVariant.id")
+    @Mapping(target = "productVariantName", source = "productVariant.name")
+    @Mapping(target = "sku", source = "productVariant.sku")
+    @Mapping(
+            target = "availableStock",
+            source = "productVariant.inventory.quantityInStock"
+    )
+    @Mapping(target = "lineTotal", ignore = true)
+    CartItemResponse toResponse(CartItem cartItem);
 
-    public CartItemResponse toResponse(CartItem cartItem) {
-        CartItemResponse response = modelMapper.map(
-                cartItem,
-                CartItemResponse.class
-        );
-
-        ProductVariant variant = cartItem.getProductVariant();
-        Inventory inventory = variant.getInventory();
-
-        response.setProductVariantId(variant.getId());
-        response.setProductVariantName(variant.getName());
-        response.setSku(variant.getSku());
-
-        if (inventory != null) {
-            response.setAvailableStock(inventory.getQuantityInStock());
+    @AfterMapping
+    default void calculateLineTotal(
+            CartItem cartItem,
+            @MappingTarget CartItemResponse response
+    ) {
+        if (cartItem.getUnitPrice() == null) {
+            return;
         }
 
         BigDecimal lineTotal = cartItem
@@ -38,6 +41,5 @@ public class CartItemMapper {
                 .multiply(BigDecimal.valueOf(cartItem.getQuantity()));
 
         response.setLineTotal(lineTotal);
-        return response;
     }
 }

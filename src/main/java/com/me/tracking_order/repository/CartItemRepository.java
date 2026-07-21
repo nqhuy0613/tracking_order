@@ -9,6 +9,7 @@ import java.util.Optional;
 
 public interface CartItemRepository extends JpaRepository<CartItem, String> {
 
+
     @Query("""
             select ci
             from CartItem ci

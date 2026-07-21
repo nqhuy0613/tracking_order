@@ -25,7 +25,6 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
             AuthenticationException exception
     ) throws IOException {
         ApiResponse<Void> body = ApiResponse.error(
-                HttpStatus.UNAUTHORIZED,
                 "UNAUTHENTICATED",
                 "Authentication is required"
         );
