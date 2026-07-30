@@ -1,0 +1,38 @@
+package com.me.tracking_order.shipment.controller;
+
+
+import com.me.tracking_order.common.response.ApiResponse;
+import com.me.tracking_order.shipment.dto.response.TrackingLogResponse;
+import com.me.tracking_order.shipment.service.TrackingLogService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/trackinglogs")
+@RequiredArgsConstructor
+public class TrackingLogController {
+
+    private final TrackingLogService trackingLogService;
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<ApiResponse<List<TrackingLogResponse>>> getTrackingLog(
+            Authentication authentication,
+            @PathVariable String orderId) {
+        List<TrackingLogResponse> trackingLogResponse = trackingLogService.getTrackingLog(
+                authentication.getName(),
+                orderId
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tracking logs retrived successfully",
+                trackingLogResponse
+        ));
+    }
+}

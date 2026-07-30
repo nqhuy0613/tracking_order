@@ -1,0 +1,29 @@
+package com.me.tracking_order.user.repository;
+
+
+import com.me.tracking_order.user.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User,String> {
+
+    // lấy kèm các quan hệ nào của user
+    @EntityGraph(attributePaths = {
+            "userRoles",
+            "userRoles.role"
+    })
+
+    @Query("""
+        select u
+        from User u
+        where u.username = :username
+        and u.isDeleted = false 
+""")
+    Optional<User> findActiveByUsername(@Param("username") String username);
+
+    boolean existsByUsername( String username);
+}
