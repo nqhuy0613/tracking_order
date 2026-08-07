@@ -1,6 +1,6 @@
 package com.me.tracking_order.order.mapper;
 
-import com.me.tracking_order.order.dto.customer.response.OrderResponse;
+import com.me.tracking_order.order.dto.customer.response.OrderDetailsResponse;
 import com.me.tracking_order.order.entity.Order;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -12,7 +12,7 @@ import org.mapstruct.ReportingPolicy;
         uses = OrderItemMapper.class,
         unmappedTargetPolicy = ReportingPolicy.ERROR
 )
-public interface OrderMapper {
+public interface OrderDetailsMapper {
 
     @Mapping(target = "orderItems", source = "orderItems")
     @Mapping(target = "status", source = "shipment.status")
@@ -52,5 +52,5 @@ public interface OrderMapper {
             target = "carrierName",
             source = "shipment.carrier.name"
     )
-    OrderResponse toResponse(Order order);
+    OrderDetailsResponse toResponse(Order order);
 }

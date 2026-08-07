@@ -8,11 +8,25 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class AdminReturnSummaryResponse {
     private long activeReturns;
 
     private long awaitingInspection;
 
     private BigDecimal totalRefunds;
+
+    public AdminReturnSummaryResponse(
+            Long activeReturns,
+            Long awaitingInspection,
+            BigDecimal totalRefunds
+    ) {
+        this.activeReturns =
+                activeReturns == null ? 0L : activeReturns;
+
+        this.awaitingInspection =
+                awaitingInspection == null ? 0L : awaitingInspection;
+
+        this.totalRefunds =
+                totalRefunds == null ? BigDecimal.ZERO : totalRefunds;
+    }
 }

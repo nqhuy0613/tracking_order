@@ -1,4 +1,4 @@
-package com.me.tracking_order.shipment.dto.response;
+package com.me.tracking_order.shipment.dto.customer.response;
 
 
 import lombok.Getter;

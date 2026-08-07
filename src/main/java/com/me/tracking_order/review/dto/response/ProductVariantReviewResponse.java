@@ -1,0 +1,21 @@
+package com.me.tracking_order.review.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProductVariantReviewResponse {
+
+    private float averageRating;
+
+    private int totalReviews;
+
+    private List<ReviewResponse> reviews;
+}

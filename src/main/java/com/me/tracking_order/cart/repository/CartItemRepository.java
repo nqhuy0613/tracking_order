@@ -49,4 +49,9 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
             @Param("cartItemIds") Collection<String> cartItemIds,
             @Param("username") String username
     );
+
+    List<CartItem> findAllByCart_IdAndProductVariant_IdIn(
+            String cartId,
+            Collection<String> productVariantIds
+    );
 }

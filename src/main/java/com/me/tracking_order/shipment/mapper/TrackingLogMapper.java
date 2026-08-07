@@ -1,6 +1,6 @@
 package com.me.tracking_order.shipment.mapper;
 
-import com.me.tracking_order.shipment.dto.response.TrackingLogResponse;
+import com.me.tracking_order.shipment.dto.customer.response.TrackingLogResponse;
 import com.me.tracking_order.shipment.entity.TrackingLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;

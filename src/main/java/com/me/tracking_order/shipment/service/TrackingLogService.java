@@ -2,7 +2,7 @@ package com.me.tracking_order.shipment.service;
 
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
-import com.me.tracking_order.shipment.dto.response.TrackingLogResponse;
+import com.me.tracking_order.shipment.dto.customer.response.TrackingLogResponse;
 import com.me.tracking_order.order.entity.Order;
 import com.me.tracking_order.shipment.mapper.TrackingLogMapper;
 import com.me.tracking_order.order.repository.OrderRepository;

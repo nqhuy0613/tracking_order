@@ -1,5 +1,7 @@
 package com.me.tracking_order.cart.controller;
 
+import com.me.tracking_order.cart.dto.request.AddCartItemRequest;
+import com.me.tracking_order.cart.dto.response.AddCartItemResponse;
 import com.me.tracking_order.common.response.ApiResponse;
 import com.me.tracking_order.cart.dto.request.UpdateCartItemQuantityRequest;
 import com.me.tracking_order.cart.dto.response.CartItemResponse;
@@ -48,5 +50,22 @@ public class CartController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/items/{variantId}")
+    public ResponseEntity<ApiResponse<AddCartItemResponse>>  addItemToCart(
+            @PathVariable String variantId,
+            @Valid @RequestBody AddCartItemRequest request,
+            Authentication authentication
+    ){
+        AddCartItemResponse result = cartService.addItemToCart(variantId,
+                request,
+                authentication.getName()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Item added to cart successfully",
+                result
+        ));
     }
 }

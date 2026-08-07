@@ -1,8 +1,8 @@
-package com.me.tracking_order.shipment.controller;
+package com.me.tracking_order.shipment.controller.customer;
 
 
 import com.me.tracking_order.common.response.ApiResponse;
-import com.me.tracking_order.shipment.dto.response.TrackingLogResponse;
+import com.me.tracking_order.shipment.dto.customer.response.TrackingLogResponse;
 import com.me.tracking_order.shipment.service.TrackingLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

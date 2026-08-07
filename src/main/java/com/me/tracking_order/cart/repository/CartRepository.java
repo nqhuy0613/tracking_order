@@ -24,5 +24,17 @@ public interface CartRepository extends  JpaRepository<Cart, String> {
             @Param("username") String username
     );
 
+    @Query("""
+    select c
+    from Cart c
+    join c.user u
+    where u.username = :username
+      and u.isDeleted = false
+      and c.isDeleted = false
+""")
+    Optional<Cart> findActiveOwnedCartWithoutItems(
+            @Param("username") String username
+    );
+
 
 }

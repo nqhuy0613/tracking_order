@@ -1,26 +1,36 @@
 package com.me.tracking_order.order.service;
 
+import com.me.tracking_order.cart.entity.Cart;
+import com.me.tracking_order.cart.repository.CartRepository;
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
-import com.me.tracking_order.order.dto.customer.request.BuyNowItemRequest;
-import com.me.tracking_order.order.dto.customer.request.CreateOrderRequest;
-import com.me.tracking_order.order.dto.customer.request.OrderSummaryRequest;
-import com.me.tracking_order.order.dto.customer.response.CreateOrderResponse;
-import com.me.tracking_order.order.dto.customer.response.OrderResponse;
-import com.me.tracking_order.order.dto.customer.response.OrderSummaryResponse;
+import com.me.tracking_order.order.dto.customer.request.*;
+import com.me.tracking_order.order.dto.customer.response.*;
 import com.me.tracking_order.cart.entity.CartItem;
 import com.me.tracking_order.catalog.entity.Inventory;
 import com.me.tracking_order.catalog.entity.ProductVariant;
 import com.me.tracking_order.discount.entity.UserDiscount;
 import com.me.tracking_order.order.entity.Order;
 import com.me.tracking_order.order.entity.OrderItem;
+import com.me.tracking_order.order.enums.MyOrderStatus;
 import com.me.tracking_order.order.enums.OrderSource;
-import com.me.tracking_order.order.mapper.OrderMapper;
+import com.me.tracking_order.order.mapper.MyOrderMapper;
+import com.me.tracking_order.order.mapper.OrderDetailsMapper;
 import com.me.tracking_order.cart.repository.CartItemRepository;
 import com.me.tracking_order.catalog.repository.ProductVariantRepository;
 import com.me.tracking_order.discount.repository.UserDiscountRepository;
 import com.me.tracking_order.order.repository.OrderItemRepository;
 import com.me.tracking_order.order.repository.OrderRepository;
+import com.me.tracking_order.payment.entity.Payment;
+import com.me.tracking_order.payment.enums.PaymentMethodStatus;
+import com.me.tracking_order.payment.enums.PaymentStatus;
+import com.me.tracking_order.payment.repository.PaymentRepository;
+import com.me.tracking_order.review.dto.response.ReviewResponse;
+import com.me.tracking_order.review.entity.Review;
+import com.me.tracking_order.review.mapper.ReviewMapper;
+import com.me.tracking_order.review.repository.ReviewRepository;
+import com.me.tracking_order.shipment.entity.Shipment;
+import com.me.tracking_order.shipment.enums.ShipmentStatus;
 import com.me.tracking_order.user.entity.User;
 import com.me.tracking_order.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.me.tracking_order.order.enums.OrderSource.CART;
 
@@ -47,7 +56,12 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductVariantRepository productVariantRepository;
-    private final OrderMapper orderMapper;
+    private final CartRepository cartRepository;
+    private final ReviewRepository reviewRepository;
+    private final OrderDetailsMapper orderDetailsMapper;
+    private final ReviewMapper reviewMapper;
+    private final PaymentRepository paymentRepository;
+    private final MyOrderMapper myOrderMapper;
 
     private record OrderPricing(
             BigDecimal subTotal,
@@ -138,14 +152,14 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponse getOrderDetails(String username, String orderId){
+    public OrderDetailsResponse getOrderDetails(String username, String orderId){
         Order order = orderRepository.findActiveOwnedOrder(
                 username,
                 orderId
         ).orElseThrow(
                 () -> new BusinessException(ErrorCode.ORDER_NOT_FOUND)
         );
-        return orderMapper.toResponse(order);
+        return orderDetailsMapper.toResponse(order);
     }
 
     private List<CheckoutLine> resolveCheckoutLines(
@@ -170,7 +184,249 @@ public class OrderService {
         };
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getMyOrders(String username, MyOrderStatus status) {
+        // lay tat ca cac Orders chua xoa,
+        List<Order> orders = orderRepository
+                .findAllByUser_UsernameAndUser_IsDeletedFalseAndIsDeletedFalseOrderByCreatedAtDesc(username);
 
+        // quyet dinh status cua cac order va loc
+        Map<Order, MyOrderStatus> orderStatusMap = orders.stream()
+                .collect(Collectors.toMap(
+                        order -> order,
+                        order -> getOrderStatus(order)
+                ));
+
+        List<Order> filteredOrders = orders;
+
+        if(status != null) {
+            filteredOrders = orders.stream()
+                    .filter(order -> orderStatusMap.get(order) == status)
+                    .collect(Collectors.toList());
+        }
+
+        if (filteredOrders.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> orderIds = filteredOrders.stream()
+                .map(order -> order.getId())
+                .collect(Collectors.toList());
+
+
+
+        // query count orderItem bang group by va id trong list da loc
+        List<Payment> payments = paymentRepository.findActiveWithMethodByOrderIds(orderIds);
+
+        Map<String, Payment> latestPaymentByOrderId =
+                new HashMap<>();
+
+        for (Payment payment : payments) {
+            latestPaymentByOrderId.putIfAbsent(
+                    payment.getOrder().getId(),
+                    payment
+            );
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByIsDeletedFalseAndOrder_IdIn(orderIds);
+
+        Map<String, Integer> orderItemsByOrderId =
+                orderItems.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        orderItem -> orderItem.getOrder().getId(),
+                                        Collectors.summingInt(orderItem->1)
+                                )
+                        );
+
+        // tra ve response
+        return filteredOrders.stream()
+                .map(order -> myOrderMapper.toResponse(
+                        order,
+                        latestPaymentByOrderId.get(order.getId()),
+                        orderStatusMap.get(order),
+                        orderItemsByOrderId.getOrDefault(order.getId(), 0)
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OrderStatistics getOrderStatistics(String username){
+        return orderRepository.getOrderStatistics(
+                username,
+                ShipmentStatus.SHIPPING,
+                ShipmentStatus.DELIVERED
+        );
+    }
+
+    @Transactional
+    public List<ReorderItemResponse> reorder(String username, String orderId){
+        Order order = orderRepository.getActiveOwnedDeliveredOrder(
+                username,
+                orderId,
+                ShipmentStatus.DELIVERED
+        ).orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        Cart cart = cartRepository.findActiveOwnedCartWithoutItems(username).
+                orElseThrow(() ->  new BusinessException(ErrorCode.CART_NOT_FOUND));
+
+        List<OrderItem> orderItems = orderItemRepository.findActiveByOrderId(orderId);
+
+
+        // kiem tra lai so luong
+        int activeOrderItemCount =
+                orderItemRepository.countByIsDeletedFalseAndOrder_Id(orderId);
+        if (activeOrderItemCount == 0
+                || orderItems.size() != activeOrderItemCount) {
+            throw new BusinessException(ErrorCode.PRODUCT_UNAVAILABLE);
+        }
+
+        List<String> productVariantIds = orderItems.stream()
+                .map(x-> x.getProductVariant().getId())
+                .distinct()
+                .toList();
+
+
+        List<CartItem> cartItems = cartItemRepository
+                .findAllByCart_IdAndProductVariant_IdIn(cart.getId(), productVariantIds);
+
+
+        Map<String, CartItem> cartItemMap = cartItems.stream()
+                .collect(Collectors.toMap(
+                        cartItem -> cartItem.getProductVariant().getId(),
+                        cartItem -> cartItem));
+
+        Map<String, Integer> finalQuantityMap = new HashMap<>();
+
+        for(OrderItem orderItem : orderItems){
+            ProductVariant productVariant = orderItem.getProductVariant();
+            Inventory inventory = productVariant.getInventory();
+
+            CartItem cartItem = cartItemMap.get(productVariant.getId());
+
+            int finalQuantity;
+
+            if (cartItem == null || cartItem.isDeleted()) {
+                finalQuantity = orderItem.getQuantity();
+            } else {
+                finalQuantity =
+                        cartItem.getQuantity() + orderItem.getQuantity();
+            }
+
+            if (finalQuantity > inventory.getQuantityInStock()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
+
+            finalQuantityMap.put(productVariant.getId(), finalQuantity);
+        }
+
+        List<CartItem> saveCartItems = new ArrayList<>();
+
+        for(OrderItem orderItem : orderItems){
+            ProductVariant productVariant = orderItem.getProductVariant();
+
+            CartItem cartItem = cartItemMap.get(productVariant.getId());
+
+            if(cartItem == null) {
+                CartItem savedCartItem = new CartItem();
+                savedCartItem.setProductVariant(productVariant);
+                savedCartItem.setQuantity(finalQuantityMap.get(productVariant.getId()));
+                savedCartItem.setCart(cart);
+                savedCartItem.setUnitPrice(productVariant.getUnitPrice());
+                saveCartItems.add(savedCartItem);
+            }
+            else {
+                cartItem.setDeleted(false);
+                cartItem.setQuantity(finalQuantityMap.get(productVariant.getId()));
+                cartItem.setUnitPrice(productVariant.getUnitPrice());
+                saveCartItems.add(cartItem);
+            }
+        }
+
+        return cartItemRepository.saveAll(saveCartItems)
+                .stream()
+                .map(cartItem -> new ReorderItemResponse(cartItem.getId(), cartItem.getQuantity()))
+                .toList();
+    }
+
+
+    @Transactional
+    public List<ReviewResponse> review(String username, String orderId, CreateReviewRequest request){
+        Order order = orderRepository.getActiveOwnedDeliveredOrder(
+                username,
+                orderId,
+                ShipmentStatus.DELIVERED
+        ).orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        // kiem tra request khong rong và khong trung orderItemId
+        Set<String> requestIds = request.getReviews()
+                .stream()
+                .map(ReviewRequest::getOrderItemId)
+                .collect(Collectors.toSet());
+
+        if(requestIds.size() == 0 || requestIds.size() != request.getReviews().size()){
+            throw new BusinessException(ErrorCode.DUPLICATE_ORDER_ITEM);
+        }
+
+        // tim cac orderItem chua xoa trong order
+        List<OrderItem> orderItems = orderItemRepository.findByIsDeletedFalseAndOrder_Id(orderId);
+
+        // kiem tra các orderItemId trong request deu thuoc các item chua xoa trong order
+        Map<String, OrderItem> orderItemMap = orderItems.stream()
+                .collect(Collectors.toMap(
+                        orderItem -> orderItem.getId(),
+                        orderItem -> orderItem
+                ));
+
+        if(!orderItemMap.keySet().containsAll(requestIds)){
+            throw new BusinessException(ErrorCode.INVALID_ORDER_ITEM_SELECTION);
+        }
+
+        //kiem tra cac orderItem da co review truoc chua(unique)
+        List<Review> reviews = reviewRepository.findAllByOrderItem_IdIn(requestIds);
+
+        if(reviews.size() != 0){
+            throw new BusinessException(ErrorCode.ORDER_ITEM_ALREADY_REVIEWED);
+        }
+
+        //tao cac review
+        List<Review> savedReviews = new ArrayList<>();
+        for(ReviewRequest reviewRequest : request.getReviews()){
+            Review review = new Review();
+            review.setOrderItem(orderItemMap.get(reviewRequest.getOrderItemId()));
+            review.setDescription(reviewRequest.getDescription());
+            review.setRating(reviewRequest.getRating());
+            savedReviews.add(review);
+        }
+
+        // save all va tra ve response
+        return reviewRepository.saveAll(savedReviews).stream()
+                .map(reviewMapper::toResponse)
+                .toList();
+    }
+
+    private MyOrderStatus getOrderStatus(Order order){
+
+        Shipment shipment = order.getShipment();
+
+        if (shipment == null || shipment.isDeleted()) {
+            return order.getPaymentStatus() == PaymentStatus.PAID
+                    ? MyOrderStatus.PROCESSING
+                    : MyOrderStatus.AWAITING_PAYMENT;
+        }
+
+        return switch (shipment.getStatus()) {
+            case DELIVERED -> MyOrderStatus.COMPLETED;
+            case FAILED -> MyOrderStatus.CANCELLED;
+            case SHIPPING -> MyOrderStatus.SHIPPING;
+
+            case PENDING,
+                 CONFIRMED,
+                 PICKING,
+                 RETURNING,
+                 REATTEMPT -> MyOrderStatus.PROCESSING;
+        };
+    }
 
     private List<CheckoutLine> resolveCartLines(String username, List<String> requestedCartItemIds, BuyNowItemRequest buyNowItemRequest){
         Set<String> cartItemIds = new HashSet<>(requestedCartItemIds);
