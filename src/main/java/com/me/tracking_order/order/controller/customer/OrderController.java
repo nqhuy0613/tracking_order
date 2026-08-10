@@ -49,13 +49,11 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<CreateOrderResponse>>  createOrder(
-            Authentication authentication,
             @Valid @RequestBody CreateOrderRequest createOrderRequest
     ){
         CreateOrderResponse result = orderService.createOrder(
 
-                createOrderRequest,
-                authentication.getName()
+                createOrderRequest
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)

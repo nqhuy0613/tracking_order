@@ -136,5 +136,5 @@ public interface ProductVariantRepository
             Pageable pageable
     );
 
-
+    long countByIsDeletedFalse();
 }

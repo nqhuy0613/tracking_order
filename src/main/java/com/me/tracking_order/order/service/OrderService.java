@@ -34,6 +34,8 @@ import com.me.tracking_order.shipment.enums.ShipmentStatus;
 import com.me.tracking_order.user.entity.User;
 import com.me.tracking_order.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -101,7 +103,10 @@ public class OrderService {
 
 
     @Transactional
-    public CreateOrderResponse createOrder(CreateOrderRequest request, String username) {
+    public CreateOrderResponse createOrder(CreateOrderRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
         PreparedOrder preparedOrder = preparedOrder(username, request.getCartItemIds(), request.getBuyNowItem(), request.getSource(), request.getUserDiscountId());
 
         OrderPricing pricing = preparedOrder.pricing();

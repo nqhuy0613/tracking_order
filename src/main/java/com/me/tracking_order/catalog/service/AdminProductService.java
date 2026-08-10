@@ -44,7 +44,7 @@ public class AdminProductService {
     public AdminProductSummaryResponse getAdminProductSummary() {
         BigDecimal totalPrice = productVariantRepository.getTotalPrice();
 
-        long productVariantCount = productRepository.countByIsDeletedFalse();
+        long productVariantCount = productVariantRepository.countByIsDeletedFalse();
 
         long lowStockVariantCount = productVariantRepository.getLowStockVariantcCount(5);
 
@@ -113,6 +113,8 @@ public class AdminProductService {
             inventory.setQuantityInStock(
                     request.getQuantityInStock()
             );
+
+            inventoryRepository.save(inventory);
         }
 
         return updateProductVariantMapper.toResponse(
@@ -121,7 +123,7 @@ public class AdminProductService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AdminGetAllVariantResponse> getAllProductVariants(
+    public PageResponse<AdminGetAllVariantResponse>     getAllProductVariants(
             AdminVariantFilterRequest request,
             Integer pageNumber,
             Integer pageSize
