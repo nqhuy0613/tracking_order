@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-@Builder
+
 public class AdminProductSummaryResponse {
 
     private BigDecimal totalPrice;
@@ -17,4 +17,16 @@ public class AdminProductSummaryResponse {
     private long productVariantCount;
 
     private long lowStockVariantCount;
+
+    public AdminProductSummaryResponse(
+            BigDecimal totalPrice,
+
+            long productVariantCount,
+
+            long lowStockVariantCount
+    ) {
+       this.totalPrice = totalPrice == null ? BigDecimal.ZERO : totalPrice;
+       this.productVariantCount = productVariantCount;
+       this.lowStockVariantCount = lowStockVariantCount;
+    }
 }

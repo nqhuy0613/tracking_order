@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, String> {
-    Optional<Category> findByNameAndIsDeletedFalse(String name);
+    Optional<Category> findByIdAndIsDeletedFalse(String id);
 
     List<Category> findByIsDeletedFalse();
+
+
 }
 

@@ -2,6 +2,7 @@ package com.me.tracking_order.shipment.service;
 
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
+import com.me.tracking_order.security.CurrentUserProvider;
 import com.me.tracking_order.shipment.dto.customer.response.TrackingLogResponse;
 import com.me.tracking_order.order.entity.Order;
 import com.me.tracking_order.shipment.mapper.TrackingLogMapper;
@@ -20,9 +21,12 @@ public class TrackingLogService {
     private final TrackingLogRepository trackingLogRepository;
     private final OrderRepository orderRepository;
     private final TrackingLogMapper trackingLogMapper;
+    private final CurrentUserProvider currentUserProvider;
 
     @Transactional(readOnly = true)
-    public List<TrackingLogResponse> getTrackingLog (String username, String orderId) {
+    public List<TrackingLogResponse> getTrackingLog (String orderId) {
+        String username = currentUserProvider.getRequiredUsername();
+
         Order order = orderRepository.findActiveOwnedOrder(
                 username, orderId
         ).orElseThrow(

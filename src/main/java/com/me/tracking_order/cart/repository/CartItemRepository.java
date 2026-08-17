@@ -37,7 +37,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
             join fetch ci.cart c
             join fetch c.user u
             join fetch ci.productVariant pv
-            left join fetch pv.inventory inventory
             where ci.id in :cartItemIds
               and u.username = :username
               and ci.isDeleted = false

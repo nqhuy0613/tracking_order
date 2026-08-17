@@ -2,6 +2,7 @@ package com.me.tracking_order.shipment.service;
 
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
+import com.me.tracking_order.security.CurrentUserProvider;
 import com.me.tracking_order.shipment.dto.customer.response.ShipmentDetailResponse;
 import com.me.tracking_order.shipment.entity.Shipment;
 import com.me.tracking_order.shipment.entity.TrackingLog;
@@ -20,18 +21,23 @@ public class ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final ShipmentDetailMapper shipmentDetailMapper;
     private final TrackingLogRepository trackingLogRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     @Transactional(readOnly = true)
-    public ShipmentDetailResponse getShipmentDetail(String orderId, String userName){
-        Shipment shipment = shipmentRepository.findActiveOwnedByOrderId(orderId,userName)
+    public ShipmentDetailResponse getShipmentDetail(String orderId){
+        String username = currentUserProvider.getRequiredUsername();
+
+        Shipment shipment = shipmentRepository.findActiveOwnedByOrderId(orderId,username)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         return shipmentDetailMapper.toResponse(shipment);
     }
 
     @Transactional
-    public ShipmentDetailResponse markShipmentDelivered(String orderId, String userName){
-        Shipment shipment = shipmentRepository.findActiveOwnedByOrderIdAndStatus(orderId,userName, ShipmentStatus.SHIPPING)
+    public ShipmentDetailResponse markShipmentDelivered(String orderId){
+        String username = currentUserProvider.getRequiredUsername();
+
+        Shipment shipment = shipmentRepository.findActiveOwnedByOrderIdAndStatus(orderId,username, ShipmentStatus.SHIPPING)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         shipment.setStatus(ShipmentStatus.DELIVERED);

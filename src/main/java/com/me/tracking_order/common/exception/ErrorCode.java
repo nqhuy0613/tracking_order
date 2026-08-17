@@ -164,6 +164,12 @@ public enum ErrorCode {
             "Product variant SKU already exists"
     ),
 
+    PRODUCT_VARIANT_SKU_MUST_UNIQUE(
+            HttpStatus.CONFLICT,
+            "PRODUCT_VARIANT_SKU_MUST_UNIQUE",
+            "Product variant SKU must unique"
+    ),
+
     CATEGORY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "CATEGORY_NOT_FOUND",

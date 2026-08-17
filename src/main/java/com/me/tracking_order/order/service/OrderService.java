@@ -2,6 +2,7 @@ package com.me.tracking_order.order.service;
 
 import com.me.tracking_order.cart.entity.Cart;
 import com.me.tracking_order.cart.repository.CartRepository;
+import com.me.tracking_order.catalog.repository.InventoryRepository;
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
 import com.me.tracking_order.order.dto.customer.request.*;
@@ -22,20 +23,18 @@ import com.me.tracking_order.discount.repository.UserDiscountRepository;
 import com.me.tracking_order.order.repository.OrderItemRepository;
 import com.me.tracking_order.order.repository.OrderRepository;
 import com.me.tracking_order.payment.entity.Payment;
-import com.me.tracking_order.payment.enums.PaymentMethodStatus;
 import com.me.tracking_order.payment.enums.PaymentStatus;
 import com.me.tracking_order.payment.repository.PaymentRepository;
 import com.me.tracking_order.review.dto.response.ReviewResponse;
 import com.me.tracking_order.review.entity.Review;
 import com.me.tracking_order.review.mapper.ReviewMapper;
 import com.me.tracking_order.review.repository.ReviewRepository;
+import com.me.tracking_order.security.CurrentUserProvider;
 import com.me.tracking_order.shipment.entity.Shipment;
 import com.me.tracking_order.shipment.enums.ShipmentStatus;
 import com.me.tracking_order.user.entity.User;
 import com.me.tracking_order.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +42,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.me.tracking_order.order.enums.OrderSource.CART;
@@ -64,6 +62,8 @@ public class OrderService {
     private final ReviewMapper reviewMapper;
     private final PaymentRepository paymentRepository;
     private final MyOrderMapper myOrderMapper;
+    private final CurrentUserProvider currentUserProvider;
+    private final InventoryRepository inventoryRepository;
 
     private record OrderPricing(
             BigDecimal subTotal,
@@ -75,7 +75,9 @@ public class OrderService {
     private record PreparedOrder(
             List<CheckoutLine> checkoutLines,
             UserDiscount userDiscount,
-            OrderPricing pricing
+            OrderPricing pricing,
+            Map<String, Inventory> inventoryByVariantId,
+            Map<String, Integer> requiredQuantityByVariant
     ){}
 
     private record CheckoutLine(
@@ -86,10 +88,16 @@ public class OrderService {
     ) {
     }
 
-    @Transactional(readOnly = true)
-    public OrderSummaryResponse getOrderSummary(String username, OrderSummaryRequest request) {
+    private enum InventoryAccessMode {
+        READ_ONLY,
+        PESSIMISTIC_WRITE
+    }
 
-        PreparedOrder preparedOrder = preparedOrder(username, request.getCartItemIds(), null, CART, request.getUserDiscountId());
+    @Transactional(readOnly = true)
+    public OrderSummaryResponse getOrderSummary(OrderSummaryRequest request) {
+        String username = currentUserProvider.getRequiredUsername();
+
+        PreparedOrder preparedOrder = preparedOrder(username, request.getCartItemIds(), null, CART, request.getUserDiscountId(), InventoryAccessMode.READ_ONLY);
 
         OrderPricing pricing = preparedOrder.pricing();
 
@@ -104,10 +112,9 @@ public class OrderService {
 
     @Transactional
     public CreateOrderResponse createOrder(CreateOrderRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        String username = currentUserProvider.getRequiredUsername();
 
-        PreparedOrder preparedOrder = preparedOrder(username, request.getCartItemIds(), request.getBuyNowItem(), request.getSource(), request.getUserDiscountId());
+        PreparedOrder preparedOrder = preparedOrder(username, request.getCartItemIds(), request.getBuyNowItem(), request.getSource(), request.getUserDiscountId(),InventoryAccessMode.PESSIMISTIC_WRITE);
 
         OrderPricing pricing = preparedOrder.pricing();
 
@@ -128,7 +135,11 @@ public class OrderService {
 
         List<CheckoutLine> checkoutLines = preparedOrder.checkoutLines;
 
-        deductInventory(checkoutLines);
+        Map<String, Inventory> inventoryByVariantId = preparedOrder.inventoryByVariantId;
+
+        Map<String, Integer> requiredQuantityByVariant = preparedOrder.requiredQuantityByVariant;
+
+        deductInventory(inventoryByVariantId,requiredQuantityByVariant);
 
         List<OrderItem> orderItems = checkoutLines.stream()
                 .map(cartItem ->
@@ -157,7 +168,9 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderDetailsResponse getOrderDetails(String username, String orderId){
+    public OrderDetailsResponse getOrderDetails(String orderId){
+        String username = currentUserProvider.getRequiredUsername();
+
         Order order = orderRepository.findActiveOwnedOrder(
                 username,
                 orderId
@@ -190,7 +203,9 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getMyOrders(String username, MyOrderStatus status) {
+    public List<OrderResponse> getMyOrders(MyOrderStatus status) {
+        String username = currentUserProvider.getRequiredUsername();
+
         // lay tat ca cac Orders chua xoa,
         List<Order> orders = orderRepository
                 .findAllByUser_UsernameAndUser_IsDeletedFalseAndIsDeletedFalseOrderByCreatedAtDesc(username);
@@ -256,7 +271,9 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderStatistics getOrderStatistics(String username){
+    public OrderStatistics getOrderStatistics(){
+        String username = currentUserProvider.getRequiredUsername();
+
         return orderRepository.getOrderStatistics(
                 username,
                 ShipmentStatus.SHIPPING,
@@ -265,7 +282,10 @@ public class OrderService {
     }
 
     @Transactional
-    public List<ReorderItemResponse> reorder(String username, String orderId){
+    public List<ReorderItemResponse> reorder(String orderId){
+
+        String username = currentUserProvider.getRequiredUsername();
+
         Order order = orderRepository.getActiveOwnedDeliveredOrder(
                 username,
                 orderId,
@@ -278,7 +298,7 @@ public class OrderService {
         List<OrderItem> orderItems = orderItemRepository.findActiveByOrderId(orderId);
 
 
-        // kiem tra lai so luong
+        // kiem tra co oi nao ma p/pv/i bi xoa
         int activeOrderItemCount =
                 orderItemRepository.countByIsDeletedFalseAndOrder_Id(orderId);
         if (activeOrderItemCount == 0
@@ -356,7 +376,10 @@ public class OrderService {
 
 
     @Transactional
-    public List<ReviewResponse> review(String username, String orderId, CreateReviewRequest request){
+    public List<ReviewResponse> review(String orderId, CreateReviewRequest request){
+
+        String username = currentUserProvider.getRequiredUsername();
+
         Order order = orderRepository.getActiveOwnedDeliveredOrder(
                 username,
                 orderId,
@@ -446,7 +469,7 @@ public class OrderService {
         List<CartItem> cartItems= cartItemRepository.findActiveOwnedCartItems(cartItemIds, username)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CART_ITEM_SELECTION));
 
-        // có cartitem thuộc user khác
+        // có cartitem thuộc user khác, cart item khong ton tai
         if(cartItems.size() != requestedCartItemIds.size()) {
             throw new BusinessException(ErrorCode.INVALID_CART_ITEM_SELECTION);
         }
@@ -473,7 +496,7 @@ public class OrderService {
         }
 
         ProductVariant variant = productVariantRepository
-                .findActiveWithInventoryById(
+                .findByIdAndIsDeletedFalse(
                         buyNowItem.getProductVariantId()
                 )
                 .orElseThrow(() -> new BusinessException(
@@ -488,20 +511,21 @@ public class OrderService {
         );
     }
 
-    private void validateCheckoutLine(List<CheckoutLine> checkoutLines) {
-        for (CheckoutLine checkoutLine : checkoutLines) {
-            ProductVariant variant = checkoutLine.productVariant();
-            Inventory inventory = variant.getInventory();
+    private void validateCheckoutLine(Map<String,Inventory> inventoryByVariantId,Map<String, Integer> requiredQuantityByVariant) {
+        for (Map.Entry<String, Integer> entry
+                : requiredQuantityByVariant.entrySet()) {
 
-            if (variant.isDeleted()
-                    || inventory == null
+            Integer quantity = entry.getValue();
+            Inventory inventory = inventoryByVariantId.get(entry.getKey());
+
+            if ( inventory == null
                     || inventory.isDeleted()) {
                 throw new BusinessException(
                         ErrorCode.PRODUCT_UNAVAILABLE
                 );
             }
 
-            if (checkoutLine.quantity()
+            if (quantity
                     > inventory.getQuantityInStock()) {
                 throw new BusinessException(
                         ErrorCode.INSUFFICIENT_STOCK
@@ -554,11 +578,37 @@ public class OrderService {
            List<String> cartItemIds,
            BuyNowItemRequest buyNowItem,
            OrderSource source,
-           String userDiscountId
+           String userDiscountId,
+           InventoryAccessMode inventoryAccessMode
     ){
         List<CheckoutLine> checkoutLines = resolveCheckoutLines(username, cartItemIds, buyNowItem, source);
 
-        validateCheckoutLine(checkoutLines);
+        List<String> productVariantIds = checkoutLines.stream()
+                .map(x -> x.productVariant().getId())
+                .toList();
+
+        List<Inventory> lockedInventories =
+                inventoryAccessMode == InventoryAccessMode.PESSIMISTIC_WRITE
+                ? inventoryRepository.findAllActiveByVariantIdsForUpdate(productVariantIds)
+                : inventoryRepository.findAllByProductVariantIdInAndIsDeletedFalse(productVariantIds);
+
+        if(lockedInventories.size() != productVariantIds.size()) {
+            throw new BusinessException(ErrorCode.PRODUCT_UNAVAILABLE);
+        }
+
+        Map<String, Integer> requiredQuantityByVariant = checkoutLines.stream()
+                .collect(Collectors.toMap(
+                        checkoutLine -> checkoutLine.productVariant.getId(),
+                        checkoutLine -> checkoutLine.quantity()
+                ));
+
+        Map<String, Inventory> inventoryByVariantId =
+                lockedInventories.stream().
+                        collect(Collectors.toMap(
+                                inventory -> inventory.getProductVariant().getId(),
+                                x -> x));
+
+        validateCheckoutLine(inventoryByVariantId, requiredQuantityByVariant);
 
         BigDecimal subTotal = calculateSubTotal(checkoutLines);
 
@@ -584,21 +634,23 @@ public class OrderService {
         return new PreparedOrder(
                 checkoutLines,
                 userDiscount,
-                orderPricing
+                orderPricing,
+                inventoryByVariantId,
+                requiredQuantityByVariant
         );
     }
 
     private void deductInventory(
-            List<CheckoutLine> checkoutLines
+            Map<String, Inventory> inventoryByVariantId,
+            Map<String, Integer> requiredQuantityByVariant
     ) {
-        for (CheckoutLine checkoutLine : checkoutLines) {
-            Inventory inventory = checkoutLine
-                    .productVariant()
-                    .getInventory();
+        for (Map.Entry<String, Inventory> entry : inventoryByVariantId.entrySet()) {
+            Inventory inventory = entry.getValue();
+            Integer quantity = requiredQuantityByVariant.get(entry.getKey());
 
             inventory.setQuantityInStock(
                     inventory.getQuantityInStock()
-                            - checkoutLine.quantity()
+                            - quantity
             );
         }
     }

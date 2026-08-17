@@ -50,7 +50,6 @@ public class AdminUpdateProductVariantRequest {
 
     private String description;
 
-    @NotBlank(message = "Category name must not be blank")
-    @Size(max = 255, message = "Category name must not exceed 255 characters")
-    private String categoryName;
+    @NotBlank(message = "categoryId must not be blank")
+    private String categoryId;
 }

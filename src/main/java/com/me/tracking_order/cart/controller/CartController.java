@@ -10,7 +10,6 @@ import com.me.tracking_order.cart.service.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,13 +22,11 @@ public class CartController {
     @PutMapping("/items/{cartItemId}/quantity")
     public ResponseEntity<ApiResponse<CartItemResponse>> updateQuantity(
             @PathVariable String cartItemId,
-            @Valid @RequestBody UpdateCartItemQuantityRequest request,
-            Authentication authentication
+            @Valid @RequestBody UpdateCartItemQuantityRequest request
     ) {
         CartItemResponse result = cartService.updateQuantity(
                 cartItemId,
-                request,
-                authentication.getName()
+                request
         );
 
         ApiResponse<CartItemResponse> response = ApiResponse.success(
@@ -41,8 +38,8 @@ public class CartController {
     }
 
     @GetMapping("/detail")
-    public ResponseEntity<ApiResponse<CartResponse>> getCart(Authentication authentication) {
-        CartResponse result = cartService.getCart(authentication.getName());
+    public ResponseEntity<ApiResponse<CartResponse>> getCart() {
+        CartResponse result = cartService.getCart();
 
         ApiResponse<CartResponse> response = ApiResponse.success(
                 "Cart retrived successfully",
@@ -55,12 +52,10 @@ public class CartController {
     @PostMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<AddCartItemResponse>>  addItemToCart(
             @PathVariable String variantId,
-            @Valid @RequestBody AddCartItemRequest request,
-            Authentication authentication
+            @Valid @RequestBody AddCartItemRequest request
     ){
         AddCartItemResponse result = cartService.addItemToCart(variantId,
-                request,
-                authentication.getName()
+                request
         );
 
         return ResponseEntity.ok(ApiResponse.success(

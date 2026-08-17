@@ -1,5 +1,6 @@
 package com.me.tracking_order.catalog.repository;
 
+import com.me.tracking_order.catalog.dto.admin.response.AdminProductSummaryResponse;
 import com.me.tracking_order.catalog.dto.customer.response.FeaturedProductVariantResponse;
 import com.me.tracking_order.catalog.entity.ProductVariant;
 import com.me.tracking_order.shipment.enums.ShipmentStatus;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,15 +36,8 @@ public interface ProductVariantRepository
             Pageable pageable
     );
 
-    @Query("""
-                select pv
-                from ProductVariant pv
-                left join fetch pv.inventory inventory
-                where pv.id = :productVariantId
-                  and pv.isDeleted = false
-            """)
-    Optional<ProductVariant> findActiveWithInventoryById(
-            @Param("productVariantId") String productVariantId
+    Optional<ProductVariant> findByIdAndIsDeletedFalse(
+            String productVariantId
     );
 
     @Query("""
@@ -59,38 +54,29 @@ public interface ProductVariantRepository
     );
 
     @Query("""
-        select coalesce(
+        select new com.me.tracking_order.catalog.dto.admin.response.AdminProductSummaryResponse(
             sum(pv.unitPrice*i.quantityInStock),
-            0
-        ) 
+            count(pv),
+            count(case 
+                    when i.quantityInStock >= 1 and i.quantityInStock <= :low_stock then 1
+                    
+            end)
+        )
         from ProductVariant pv
         join pv.inventory i
         join pv.product p
         where pv.isDeleted = false 
-          and i.isDeleted = false 
           and p.isDeleted = false 
-""")
-    BigDecimal getTotalPrice();
-
-    @Query("""
-        select count(pv)
-        from ProductVariant pv
-        join pv.inventory i
-        join pv.product p
-        where pv.isDeleted = false 
           and i.isDeleted = false 
-          and p.isDeleted = false
-          and i.quantityInStock >= 1
-          and i.quantityInStock <= :max
 """)
-    long getLowStockVariantcCount(
-            @Param("max") long max
+    AdminProductSummaryResponse getAdminProductSummary(
+            @Param("low_stock") int lowStock
     );
+
 
     @Query("""
                 select pv
                 from ProductVariant pv
-                left join fetch pv.inventory i
                 join fetch pv.product p
                 left join fetch p.category c
                 where pv.id = :productVariantId
@@ -136,5 +122,8 @@ public interface ProductVariantRepository
             Pageable pageable
     );
 
-    long countByIsDeletedFalse();
+    List<ProductVariant> findAllBySkuIn(
+            Collection<String> skus
+    );
+
 }

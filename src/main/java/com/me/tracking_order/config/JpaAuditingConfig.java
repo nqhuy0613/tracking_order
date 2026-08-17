@@ -1,30 +1,23 @@
 package com.me.tracking_order.config;
 
+import com.me.tracking_order.security.CurrentUserProvider;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
 @Configuration
 public class JpaAuditingConfig {
+
     @Bean
-    public AuditorAware<String> auditorProvider() {
-        return () -> {
-            Authentication authentication = SecurityContextHolder
-                    .getContext()
-                    .getAuthentication();
-
-            if (authentication == null
-                    || !authentication.isAuthenticated()
-                    || authentication instanceof AnonymousAuthenticationToken) {
-                return Optional.of("system");
-            }
-
-            return Optional.of(authentication.getName());
-        };
+    public AuditorAware<String> auditorProvider(
+            CurrentUserProvider currentUserProvider
+    ) {
+        return () -> Optional.of(
+                currentUserProvider.findUsername()
+                        .orElse("system")
+        );
     }
 }

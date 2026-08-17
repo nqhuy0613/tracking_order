@@ -16,6 +16,7 @@ import com.me.tracking_order.cart.mapper.AddCartItemMapper;
 import com.me.tracking_order.cart.mapper.CartItemMapper;
 import com.me.tracking_order.cart.repository.CartItemRepository;
 import com.me.tracking_order.cart.repository.CartRepository;
+import com.me.tracking_order.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +32,15 @@ public class CartService {
     private final AddCartItemMapper addCartItemMapper;
     private final CartRepository cartRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     @Transactional
     public CartItemResponse updateQuantity(
             String cartItemId,
-            UpdateCartItemQuantityRequest request,
-            String username
+            UpdateCartItemQuantityRequest request
     ) {
+        String username = currentUserProvider.getRequiredUsername();
+
         CartItem cartItem = cartItemRepository
                 .findActiveOwnedCartItem(cartItemId, username)
                 .orElseThrow(() -> new BusinessException(
@@ -64,7 +67,9 @@ public class CartService {
     }
 
     @Transactional(readOnly = true)
-    public CartResponse getCart(String username) {
+    public CartResponse getCart() {
+        String username = currentUserProvider.getRequiredUsername();
+
         Cart cart = cartRepository
                 .findActiveOwnedCart(username)
                 .orElseThrow(() -> new BusinessException(
@@ -89,9 +94,10 @@ public class CartService {
     @Transactional
     public AddCartItemResponse addItemToCart(
             String variantId,
-            AddCartItemRequest request,
-            String username
+            AddCartItemRequest request
     ) {
+        String username = currentUserProvider.getRequiredUsername();
+
         Cart cart = cartRepository
                 .findActiveOwnedCart(username)
                 .orElseThrow(() -> new BusinessException(

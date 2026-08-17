@@ -6,7 +6,6 @@ import com.me.tracking_order.shipment.dto.customer.response.ShipmentDetailRespon
 import com.me.tracking_order.shipment.service.ShipmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,13 +17,11 @@ public class ShipmentController {
 
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<ShipmentDetailResponse>> getShipmentDetail(
-            @PathVariable String orderId,
-            Authentication authentication
+            @PathVariable String orderId
     ) {
 
         ShipmentDetailResponse result = shipmentService.getShipmentDetail(
-                orderId,
-                authentication.getName()
+                orderId
         );
 
         return ResponseEntity.ok(ApiResponse.success(
@@ -35,12 +32,10 @@ public class ShipmentController {
 
     @PutMapping("/mark-delivered/{orderId}")
     public ResponseEntity<ApiResponse<ShipmentDetailResponse>> markShipmentDelivered(
-            @PathVariable String orderId,
-            Authentication authentication
+            @PathVariable String orderId
     ) {
         ShipmentDetailResponse result = shipmentService.markShipmentDelivered(
-                orderId,
-                authentication.getName()
+                orderId
         );
 
         return ResponseEntity.ok(ApiResponse.success(

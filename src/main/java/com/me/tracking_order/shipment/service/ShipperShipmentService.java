@@ -3,6 +3,7 @@ package com.me.tracking_order.shipment.service;
 import com.me.tracking_order.common.exception.BusinessException;
 import com.me.tracking_order.common.exception.ErrorCode;
 import com.me.tracking_order.order.repository.OrderItemRepository;
+import com.me.tracking_order.security.CurrentUserProvider;
 import com.me.tracking_order.shipment.dto.shipper.request.MarkFailedRequest;
 import com.me.tracking_order.shipment.dto.shipper.response.*;
 import com.me.tracking_order.shipment.entity.Shipment;
@@ -35,9 +36,12 @@ public class ShipperShipmentService {
     private final TrackingLogRepository trackingLogRepository;
     private final ShipperQueueItemMapper shipperQueueItemMapper;
     private final ShipperTimelineItemMapper shipperTimelineItemMapper;
+    private final CurrentUserProvider currentUserProvider;
 
     @Transactional(readOnly = true)
-    public ShipperDailySummaryResponse getDailySummary(String username){
+    public ShipperDailySummaryResponse getDailySummary(){
+        String username = currentUserProvider.getRequiredUsername();
+
         LocalDate today = LocalDate.now();
 
         LocalDateTime startAt = today.atStartOfDay();
@@ -55,7 +59,9 @@ public class ShipperShipmentService {
     }
 
     @Transactional(readOnly = true)
-    public InProgressOrderResponse getInProgressOrder(String username){
+    public InProgressOrderResponse getInProgressOrder(){
+        String username = currentUserProvider.getRequiredUsername();
+
         ShipmentAssignment shipmentAssignment = shipmentAssignmentRepository.getActiveShipmentAssignmentByUsernameAndStatus(
                 username,
                 AssignmentStatus.IN_PROGRESS
@@ -67,7 +73,9 @@ public class ShipperShipmentService {
     }
 
     @Transactional
-    public ShipperUpdateStatusResponse markDelivered(String id, String username){
+    public ShipperUpdateStatusResponse markDelivered(String id){
+        String username = currentUserProvider.getRequiredUsername();
+
         ShipmentAssignment shipmentAssignment = shipmentAssignmentRepository.getActiveShipmentAssignmentByUsernameAndStatusAndId(
                 username,
                 AssignmentStatus.IN_PROGRESS,
@@ -98,7 +106,9 @@ public class ShipperShipmentService {
     }
 
     @Transactional
-    public ShipperUpdateStatusResponse markFailed(String id, String username, MarkFailedRequest request){
+    public ShipperUpdateStatusResponse markFailed(String id, MarkFailedRequest request){
+        String username = currentUserProvider.getRequiredUsername();
+
         ShipmentAssignment shipmentAssignment = shipmentAssignmentRepository.getActiveShipmentAssignmentByUsernameAndStatusAndId(
                 username,
                 AssignmentStatus.IN_PROGRESS,
@@ -131,7 +141,9 @@ public class ShipperShipmentService {
     }
 
     @Transactional(readOnly = true)
-    public ShipperQueuePreviewResponse getQueue(String username){
+    public ShipperQueuePreviewResponse getQueue(){
+        String username = currentUserProvider.getRequiredUsername();
+
         List<ShipmentAssignment> shipmentAssignments = shipmentAssignmentRepository.getAllActiveShipmentAssignmentByUsernameAndStatus(
                 username,
                 AssignmentStatus.ASSIGNED
@@ -182,7 +194,9 @@ public class ShipperShipmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<ShipperTimelineItemResponse> getTodayTimeline(String username){
+    public List<ShipperTimelineItemResponse> getTodayTimeline(){
+        String username = currentUserProvider.getRequiredUsername();
+
         LocalDate today =  LocalDate.now();
 
         LocalDateTime startAt = today.atStartOfDay();

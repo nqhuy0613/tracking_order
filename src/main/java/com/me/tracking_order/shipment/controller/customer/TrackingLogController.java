@@ -6,7 +6,6 @@ import com.me.tracking_order.shipment.dto.customer.response.TrackingLogResponse;
 import com.me.tracking_order.shipment.service.TrackingLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,10 +22,8 @@ public class TrackingLogController {
 
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<List<TrackingLogResponse>>> getTrackingLog(
-            Authentication authentication,
             @PathVariable String orderId) {
         List<TrackingLogResponse> trackingLogResponse = trackingLogService.getTrackingLog(
-                authentication.getName(),
                 orderId
         );
 

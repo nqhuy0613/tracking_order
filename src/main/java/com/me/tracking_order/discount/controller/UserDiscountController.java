@@ -5,7 +5,6 @@ import com.me.tracking_order.discount.dto.response.UserDiscountResponse;
 import com.me.tracking_order.discount.service.UserDiscountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,9 +20,9 @@ public class UserDiscountController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserDiscountResponse>>>
-            getCurrentUserDiscounts(Authentication authentication) {
+            getCurrentUserDiscounts() {
         List<UserDiscountResponse> discounts = userDiscountService
-                .getCurrentUserDiscounts(authentication.getName());
+                .getCurrentUserDiscounts();
 
         ApiResponse<List<UserDiscountResponse>> response =
                 ApiResponse.success(

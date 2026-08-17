@@ -177,6 +177,8 @@ public class AdminOrderService {
 
         shipment.setStatus(ShipmentStatus.FAILED);
 
+        Shipment savedShipment = shipmentRepository.save(shipment);
+
         TrackingLog trackingLog = new TrackingLog();
         trackingLog.setOldStatus(
                 ShipmentStatus.PENDING.name()
@@ -188,7 +190,7 @@ public class AdminOrderService {
         trackingLog.setDescription(
                 rejectOrderRequest.getDescription()
         );
-        trackingLog.setShipment(shipment);
+        trackingLog.setShipment(savedShipment);
 
         trackingLogRepository.save(trackingLog);
 
